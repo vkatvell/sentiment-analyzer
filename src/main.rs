@@ -7,8 +7,16 @@ use std::time::Instant;
 use stop_words::{get, LANGUAGE};
 use unicode_segmentation::UnicodeSegmentation;
 #[derive(Debug, Deserialize)]
-struct Tweet {
+struct TrainTweet {
     sentiment: u8,
+    id: u64,
+    date: String,
+    query: String,
+    user: String,
+    tweet: String,
+}
+#[derive(Debug, Deserialize)]
+struct TestTweet {
     id: u64,
     date: String,
     query: String,
@@ -60,12 +68,11 @@ fn get_special_char_regex() -> Regex {
 }
 
 // Building word score map
-fn build_word_score_map(
-    path: &str,
-    mut wordmap: FxHashMap<String, f32>,
-) -> Result<(), Box<dyn Error>> {
+fn build_word_score_map(path: &str) -> Result<FxHashMap<String, f32>, Box<dyn Error>> {
     // Reading from csv path
     let mut reader = csv::Reader::from_path(path)?;
+
+    let mut wordmap: FxHashMap<String, f32> = <FxHashMap<String, f32>>::default();
 
     // Count records
     let mut count: i32 = 0;
@@ -74,7 +81,7 @@ fn build_word_score_map(
 
     // Iterating through records and deserializing into Tweet struct
     for result in reader.deserialize() {
-        let record: Tweet = result?;
+        let record: TrainTweet = result?;
 
         // Tokenizing tweets and processing each word to remove punctuation
         let collect: FxHashSet<String> = record
@@ -106,19 +113,84 @@ fn build_word_score_map(
     let mapcount = wordmap.len();
     println!("\n\nLength of wordmap: {}", mapcount);
 
-    println!("\nRead {} records", count);
+    println!("\nRead {} training tweets", count);
 
-    Ok(())
+    Ok(wordmap)
+}
+
+fn tweet_predictor(
+    path: &str,
+    wordmap: &FxHashMap<String, f32>,
+) -> Result<FxHashMap<u64, u8>, Box<dyn Error>> {
+    // Read in test data
+    let mut reader = csv::Reader::from_path(path)?;
+
+    let mut tweet_predictions: FxHashMap<u64, u8> = <FxHashMap<u64, u8>>::default();
+
+    // Count records
+    let mut count: i32 = 0;
+
+    for result in reader.deserialize() {
+        let record: TestTweet = result?;
+
+        let stopwords: FxHashSet<String> = get_stop_words();
+
+        // Tokenizing tweets and processing each word to remove punctuation
+        let collect: FxHashSet<String> = record
+            .tweet
+            .split_word_bounds()
+            .filter_map(|w| process_word(w, &get_special_char_regex(), &stopwords))
+            .collect();
+
+        let mut tweet_score: f32 = 0.0;
+        // Compare words in test data tweet with wordmap
+        for word in collect {
+            if wordmap.contains_key(&word) {
+                // Get the word value
+                // Add up scores of words in the tweets
+                tweet_score += wordmap.get(&word).unwrap();
+            }
+        }
+        // Push the sentiment guess and tweet ID into tweet_predictions map
+        if tweet_score > 4.0 {
+            tweet_predictions.entry(record.id).or_insert(4);
+        }
+        tweet_predictions.entry(record.id).or_insert(0);
+
+        // Discarding unused struct values
+        let _ = record.query;
+        let _ = record.date;
+        let _ = record.user;
+
+        count += 1;
+    }
+
+    // Printing predictions map
+    let mapcount = tweet_predictions.len();
+    println!("\n\nLength of tweet_predictions map: {}", mapcount);
+
+    println!("\nRead {} testing tweets", count);
+
+    Ok(tweet_predictions)
 }
 
 fn main() {
     // Creating hashmap for words and their score
-    let word_map: FxHashMap<String, f32> = FxHashMap::default();
 
     let start_time = Instant::now();
-    if let Err(e) = build_word_score_map("./sent_analysis_data/train_dataset_20k.csv", word_map) {
+    let word_map = build_word_score_map("./sent_analysis_data/train_dataset_20k.csv");
+    if let Err(e) = &word_map {
         eprintln!("{}", e);
     }
+
+    let tweetpredictions = tweet_predictor(
+        "./sent_analysis_data/test_dataset_10k.csv",
+        &word_map.unwrap(),
+    );
+    if let Err(e) = &tweetpredictions {
+        eprintln!("{}", e);
+    }
+
     let elapsed_time = start_time.elapsed();
 
     println!("\nTime: {:?}", elapsed_time);
