@@ -72,9 +72,6 @@ fn build_word_score_map(
     for result in reader.deserialize() {
         let record: Tweet = result?;
 
-        // // Tokenizing tweets
-        // let _collection: Vec<&str> = record.tweet.split_whitespace().collect();
-
         // Tokenizing tweets and processing each word to remove punctuation
         let collect: FxHashSet<String> = record
             .tweet
