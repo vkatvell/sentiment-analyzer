@@ -16,31 +16,32 @@ struct Tweet {
     tweet: String,
 }
 
-fn get_stop_words() -> Vec<String> {
+// Getting stop words and collecting into HashSet
+fn get_stop_words() -> FxHashSet<String> {
     get(LANGUAGE::English)
         .iter()
         .map(|w| w.replace('\"', ""))
-        .collect()
-}
-
-fn process_word(w: &str, special_char_regex: &Regex) -> Option<String> {
-    let stopwords: FxHashSet<String> = get_stop_words()
+        .collect::<Vec<String>>()
         .iter()
         .map(|s| s.to_owned())
-        .collect::<FxHashSet<String>>();
+        .collect::<FxHashSet<String>>()
+}
 
-    let punc_vec = vec![
+// Processing words and removing stop words, special chars, and punctuation
+fn process_word(
+    w: &str,
+    special_char_regex: &Regex,
+    stopwords: &FxHashSet<String>,
+) -> Option<String> {
+    let punc_vec: Vec<String> = vec![
         "!", "\"", "#", "$", "%", "&", "'", "(", ")", "*", "+", ",", ";", ".", "/", ":", ",", "<",
         "=", ">", "?", "@", "[", "\\", "]", "^", "_", "`", "{", "|", "}", "~", "-",
     ]
     .iter()
     .map(|s| s.to_string())
-    .collect::<Vec<String>>();
+    .collect();
 
-    let punctuation: FxHashSet<String> = punc_vec
-        .iter()
-        .map(|s| s.to_string())
-        .collect::<FxHashSet<String>>();
+    let punctuation: FxHashSet<String> = punc_vec.iter().map(|s| s.to_string()).collect();
 
     let word = special_char_regex.replace_all(w.trim(), "").to_lowercase();
 
@@ -58,6 +59,7 @@ fn get_special_char_regex() -> Regex {
     Regex::new(r"('s|,|\.)").unwrap()
 }
 
+// Building word score map
 fn build_word_score_map(
     path: &str,
     mut wordmap: FxHashMap<String, f32>,
@@ -68,6 +70,8 @@ fn build_word_score_map(
     // Count records
     let mut count: i32 = 0;
 
+    let stopwords: FxHashSet<String> = get_stop_words();
+
     // Iterating through records and deserializing into Tweet struct
     for result in reader.deserialize() {
         let record: Tweet = result?;
@@ -76,7 +80,7 @@ fn build_word_score_map(
         let collect: FxHashSet<String> = record
             .tweet
             .split_word_bounds()
-            .filter_map(|w| process_word(w, &get_special_char_regex()))
+            .filter_map(|w| process_word(w, &get_special_char_regex(), &stopwords))
             .collect();
 
         // Scoring words higher if pos. sentiment
@@ -112,7 +116,7 @@ fn main() {
     let word_map: FxHashMap<String, f32> = FxHashMap::default();
 
     let start_time = Instant::now();
-    if let Err(e) = build_word_score_map("./sent_analysis_data/train_dataset_10val.csv", word_map) {
+    if let Err(e) = build_word_score_map("./sent_analysis_data/train_dataset_20k.csv", word_map) {
         eprintln!("{}", e);
     }
     let elapsed_time = start_time.elapsed();
