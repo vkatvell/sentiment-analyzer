@@ -10,3 +10,5 @@ regex = "^1"
 unicode-segmentation = "^1"
 csv = "1.1"
 serde = { version = "^1", features = ["derive"] }
+stop-words = "0.7.2"
+rustc-hash = "1.1.0"
