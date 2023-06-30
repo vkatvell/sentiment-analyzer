@@ -24,6 +24,12 @@ struct TestTweet {
     tweet: String,
 }
 
+#[derive(Debug, Deserialize)]
+struct TestSentID {
+    sentiment: u8,
+    id: u64,
+}
+
 // Getting stop words and collecting into HashSet
 fn get_stop_words() -> FxHashSet<String> {
     get(LANGUAGE::English)
@@ -118,12 +124,14 @@ fn build_word_score_map(path: &str) -> Result<FxHashMap<String, f32>, Box<dyn Er
     Ok(wordmap)
 }
 
+// Reads in test dataset and builds map of tweet ids and predicted sentiment
 fn tweet_predictor(
     path: &str,
     wordmap: &FxHashMap<String, f32>,
 ) -> Result<FxHashMap<u64, u8>, Box<dyn Error>> {
     // Read in test data
     let mut reader = csv::Reader::from_path(path)?;
+    let _ = reader.headers();
 
     let mut tweet_predictions: FxHashMap<u64, u8> = <FxHashMap<u64, u8>>::default();
 
@@ -152,7 +160,7 @@ fn tweet_predictor(
             }
         }
         // Push the sentiment guess and tweet ID into tweet_predictions map
-        if tweet_score > 4.0 {
+        if tweet_score > 15.0 {
             tweet_predictions.entry(record.id).or_insert(4);
         }
         tweet_predictions.entry(record.id).or_insert(0);
@@ -174,6 +182,46 @@ fn tweet_predictor(
     Ok(tweet_predictions)
 }
 
+// Read in test dataset to calculate accuracy
+fn calculate_accuracy(
+    path: &str,
+    tweetpredictions: &FxHashMap<u64, u8>,
+) -> Result<(), Box<dyn Error>> {
+    // Reading from csv path
+    let mut reader = csv::Reader::from_path(path)?;
+
+    let mut test_sent_ids: FxHashMap<u64, u8> = <FxHashMap<u64, u8>>::default();
+
+    let _ = reader.headers();
+
+    let total_tweets = tweetpredictions.len();
+    let mut correct_predictions = 0;
+
+    for result in reader.deserialize() {
+        let record: TestSentID = result?;
+
+        let id = record.id;
+        let sentiment = record.sentiment;
+
+        test_sent_ids.entry(id).or_insert(sentiment);
+    }
+
+    println!("\nComparing predictions and real values & calculating accuracy...");
+    for (tweet_id, prediction) in tweetpredictions {
+        if let Some(real_sent) = test_sent_ids.get(tweet_id) {
+            if prediction == real_sent {
+                correct_predictions += 1;
+            }
+        }
+    }
+
+    let accuracy = (correct_predictions as f64) / (total_tweets as f64) * 100.0;
+
+    println!("\nAccuracy {:.2}", accuracy);
+
+    Ok(())
+}
+
 fn main() {
     // Creating hashmap for words and their score
 
@@ -191,7 +239,14 @@ fn main() {
         eprintln!("{}", e);
     }
 
+    if let Err(e) = calculate_accuracy(
+        "./sent_analysis_data/test_dataset_sentiment_10k.csv",
+        &tweetpredictions.unwrap(),
+    ) {
+        eprintln!("{}", e);
+    }
+
     let elapsed_time = start_time.elapsed();
 
-    println!("\nTime: {:?}", elapsed_time);
+    println!("\nTime to execute: {:?}", elapsed_time);
 }
