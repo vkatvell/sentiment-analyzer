@@ -160,7 +160,7 @@ fn tweet_predictor(
             }
         }
         // Push the sentiment guess and tweet ID into tweet_predictions map
-        if tweet_score > 15.0 {
+        if tweet_score > 30.0 {
             tweet_predictions.entry(record.id).or_insert(4);
         }
         tweet_predictions.entry(record.id).or_insert(0);
@@ -206,7 +206,7 @@ fn calculate_accuracy(
         test_sent_ids.entry(id).or_insert(sentiment);
     }
 
-    println!("\nComparing predictions and real values & calculating accuracy...");
+    println!("\n\nComparing predictions and real values & calculating accuracy...");
     for (tweet_id, prediction) in tweetpredictions {
         if let Some(real_sent) = test_sent_ids.get(tweet_id) {
             if prediction == real_sent {
@@ -224,7 +224,6 @@ fn calculate_accuracy(
 
 fn main() {
     // Creating hashmap for words and their score
-
     let start_time = Instant::now();
     let word_map = build_word_score_map("./sent_analysis_data/train_dataset_20k.csv");
     if let Err(e) = &word_map {
