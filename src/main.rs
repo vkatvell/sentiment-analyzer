@@ -160,7 +160,7 @@ fn tweet_predictor(
             }
         }
         // Push the sentiment guess and tweet ID into tweet_predictions map
-        if tweet_score > 75.0 {
+        if tweet_score > 100.0 {
             tweet_predictions.entry(record.id).or_insert(4);
         }
         tweet_predictions.entry(record.id).or_insert(0);
