@@ -3,6 +3,8 @@ use rustc_hash::FxHashMap;
 use rustc_hash::FxHashSet;
 use serde::Deserialize;
 use std::error::Error;
+use std::fs::File;
+use std::io::Write;
 use std::time::Instant;
 use stop_words::{get, LANGUAGE};
 use unicode_segmentation::UnicodeSegmentation;
@@ -206,18 +208,27 @@ fn calculate_accuracy(
         test_sent_ids.entry(id).or_insert(sentiment);
     }
 
+    let file_name = "output.txt";
+
+    let mut file = File::create(file_name)?;
+
     println!("\n\nComparing predictions with real values & calculating accuracy...");
     for (tweet_id, prediction) in tweetpredictions {
         if let Some(real_sent) = test_sent_ids.get(tweet_id) {
             if prediction == real_sent {
                 correct_predictions += 1;
             }
+            if prediction != real_sent {
+                writeln!(file, "{}", tweet_id)?;
+            }
         }
     }
 
-    let accuracy = (correct_predictions as f64) / (total_tweets as f64) * 100.0;
+    let accuracy = (correct_predictions as f64) / (total_tweets as f64);
 
-    println!("\nAccuracy: {:.2}%", accuracy);
+    writeln!(file, "Accuracy: {:.3}", accuracy)?;
+
+    println!("\nAccuracy: {:.2}%", accuracy * 100.0);
 
     Ok(())
 }
