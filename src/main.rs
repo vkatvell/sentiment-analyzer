@@ -160,7 +160,7 @@ fn tweet_predictor(
             }
         }
         // Push the sentiment guess and tweet ID into tweet_predictions map
-        if tweet_score > 30.0 {
+        if tweet_score > 50.0 {
             tweet_predictions.entry(record.id).or_insert(4);
         }
         tweet_predictions.entry(record.id).or_insert(0);
@@ -206,7 +206,7 @@ fn calculate_accuracy(
         test_sent_ids.entry(id).or_insert(sentiment);
     }
 
-    println!("\n\nComparing predictions and real values & calculating accuracy...");
+    println!("\n\nComparing predictions with real values & calculating accuracy...");
     for (tweet_id, prediction) in tweetpredictions {
         if let Some(real_sent) = test_sent_ids.get(tweet_id) {
             if prediction == real_sent {
@@ -217,7 +217,7 @@ fn calculate_accuracy(
 
     let accuracy = (correct_predictions as f64) / (total_tweets as f64) * 100.0;
 
-    println!("\nAccuracy {:.2}", accuracy);
+    println!("\nAccuracy: {:.2}%", accuracy);
 
     Ok(())
 }
