@@ -101,7 +101,7 @@ fn build_word_score_map(path: &str) -> Result<FxHashMap<String, f32>, Box<dyn Er
             if record.sentiment == 4 {
                 *wordmap.entry(word.to_owned()).or_insert(0.0) += 5.0;
             }
-            *wordmap.entry(word).or_insert(0.0) -= 1.0;
+            *wordmap.entry(word).or_insert(0.0) -= 2.0;
         }
 
         // Discarding unused struct values
